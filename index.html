@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>International Morse Decoding</title>
+  <style>
+    :root {
+      --bg-1: #0e1218;
+      --bg-2: #1a2028;
+      --panel: rgba(9, 11, 16, 0.8);
+      --wire: #70767f;
+      --wire-dim: #444a52;
+      --text: #f1e7ce;
+      --muted: #b3ac9d;
+      --lamp-off: #1a1d22;
+      --lamp-rim: #2e333b;
+      --lamp-on: #ffd86a;
+      --lamp-core: #fff6c9;
+      --invalid: #f64d4d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(255, 214, 120, 0.08), transparent 32%),
+        linear-gradient(180deg, var(--bg-2), var(--bg-1));
+      color: var(--text);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .board {
+      width: min(1100px, 100%);
+      max-width: 100%;
+      padding: 28px 22px 24px;
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255, 214, 120, 0.06), transparent 26%),
+        radial-gradient(circle at 70% 78%, rgba(255, 214, 120, 0.04), transparent 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+        var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .board::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+        radial-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+      background-position: 0 0, 12px 12px;
+      background-size: 24px 24px;
+      opacity: 0.22;
+      pointer-events: none;
+    }
+
+    .header,
+    .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 5vw, 4.25rem);
+      line-height: 0.92;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #fff1ca;
+      text-shadow:
+        0 0 12px rgba(255, 214, 120, 0.28),
+        0 2px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    .sub {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.98rem;
+      letter-spacing: 0.03em;
+    }
+
+    .status {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      color: var(--muted);
+    }
+
+    .readout {
+      min-width: 170px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .readout strong {
+      color: var(--text);
+      letter-spacing: 0.08em;
+    }
+
+    .legend {
+      font-size: 0.92rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .settings {
+      position: relative;
+    }
+
+    .settings-toggle {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .settings-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 10px);
+      width: min(320px, calc(100vw - 48px));
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(14, 18, 24, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+      display: none;
+    }
+
+    .settings-panel.open {
+      display: block;
+    }
+
+    .settings-panel label {
+      display: block;
+      font-size: 0.92rem;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .settings-panel input[type="range"] {
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    .settings-meta {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .threshold-pill {
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: rgba(255, 216, 106, 0.08);
+      border: 1px solid rgba(255, 216, 106, 0.16);
+      color: #fff1ca;
+      font-size: 0.92rem;
+    }
+
+    .viz-wrap {
+      position: relative;
+      z-index: 1;
+      padding: 12px 4px 0;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      max-height: 76vh;
+      display: block;
+      overflow: visible;
+    }
+
+    .board.is-wide {
+      width: min(1380px, calc(100vw - 56px));
+    }
+
+    .board.is-wide .viz-wrap {
+      padding-inline: 12px;
+    }
+
+    .board.is-wide svg {
+      max-height: 70vh;
+    }
+
+    .edge {
+      stroke: var(--wire-dim);
+      stroke-width: 7;
+      stroke-linecap: round;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+      transition: stroke 180ms ease, filter 180ms ease;
+    }
+
+    .edge.active {
+      stroke: var(--lamp-on);
+      filter:
+        drop-shadow(0 0 5px rgba(255, 224, 128, 0.8))
+        drop-shadow(0 0 14px rgba(255, 209, 92, 0.7));
+    }
+
+    .lamp-circle,
+    .lamp-dash {
+      fill: var(--lamp-off);
+      stroke: var(--lamp-rim);
+      stroke-width: 2;
+      transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease;
+    }
+
+    .lamp-circle.active,
+    .lamp-dash.active {
+      fill: var(--lamp-on);
+      stroke: #ffeaa8;
+      filter:
+        drop-shadow(0 0 6px rgba(255, 235, 156, 0.95))
+        drop-shadow(0 0 18px rgba(255, 206, 85, 0.78));
+    }
+
+    .lamp-circle.core {
+      fill: #0f1217;
+    }
+
+    .label {
+      fill: rgba(241, 231, 206, 0.38);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-anchor: middle;
+      transition: fill 180ms ease, filter 180ms ease;
+      user-select: none;
+    }
+
+    .label.active {
+      fill: #fff6cc;
+      filter: drop-shadow(0 0 8px rgba(255, 215, 90, 0.9));
+    }
+
+    .root {
+      fill: rgba(241, 231, 206, 0.28);
+      font-size: 34px;
+      font-weight: 800;
+      text-anchor: middle;
+      letter-spacing: 0.18em;
+    }
+
+    .splitter {
+      stroke: rgba(241, 231, 206, 0.2);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+    }
+
+    .splitter-core {
+      stroke: rgba(241, 231, 206, 0.42);
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .invalid-box {
+      fill: #14171d;
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 1.5;
+      rx: 18;
+    }
+
+    .invalid-lamp {
+      fill: #240d10;
+      stroke: #482127;
+      stroke-width: 2;
+      transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease;
+    }
+
+    .invalid-lamp.active {
+      fill: var(--invalid);
+      stroke: #ffc0c0;
+      filter:
+        drop-shadow(0 0 6px rgba(246, 77, 77, 0.9))
+        drop-shadow(0 0 18px rgba(246, 77, 77, 0.7));
+    }
+
+    .invalid-label {
+      fill: rgba(246, 210, 210, 0.72);
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 0.12em;
+      text-anchor: middle;
+    }
+
+    .footer {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .touch-pad {
+      position: relative;
+      z-index: 1;
+      margin-top: 14px;
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background:
+        radial-gradient(circle at top, rgba(255, 214, 120, 0.08), transparent 45%),
+        rgba(255, 255, 255, 0.03);
+      text-align: center;
+      user-select: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      cursor: pointer;
+    }
+
+    .touch-pad strong {
+      display: block;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      color: #fff1ca;
+      margin-bottom: 6px;
+    }
+
+    .touch-pad span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .touch-pad.active {
+      border-color: rgba(255, 216, 106, 0.36);
+      background:
+        radial-gradient(circle at top, rgba(255, 214, 120, 0.18), transparent 45%),
+        rgba(255, 216, 106, 0.07);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 216, 106, 0.15),
+        0 0 28px rgba(255, 208, 96, 0.12);
+    }
+
+    kbd {
+      padding: 0.18rem 0.45rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      font-family: inherit;
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+    }
+
+    @media (max-width: 680px) {
+      .board {
+        padding: 22px 14px 18px;
+      }
+
+      .status {
+        gap: 10px;
+      }
+
+      .readout {
+        min-width: 0;
+        width: 100%;
+      }
+
+      .toolbar {
+        align-items: stretch;
+      }
+
+      .settings {
+        width: 100%;
+      }
+
+      .settings-toggle,
+      .threshold-pill {
+        width: 100%;
+        text-align: center;
+      }
+
+      .settings-panel {
+        left: 0;
+        right: auto;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <section class="header">
+      <h1>International<br>Morse Decoding</h1>
+      <p class="sub">Use the spacebar on desktop, or press and hold the touch pad on phone. Short press = dot, long press = dash.</p>
+      <div class="status">
+        <div class="readout">Input: <strong id="sequence">Waiting</strong></div>
+        <div class="readout">Decoded: <strong id="decoded">...</strong></div>
+        <div class="legend">Release after each tap, then pause briefly to decode.</div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="threshold-pill">Dash threshold: <strong id="thresholdValue">220ms</strong></div>
+      <div class="settings">
+        <button class="settings-toggle" id="settingsToggle" type="button" aria-expanded="false" aria-controls="settingsPanel">Settings</button>
+        <div class="settings-panel" id="settingsPanel">
+          <label for="thresholdSlider">Dot / dash threshold</label>
+          <input id="thresholdSlider" type="range" min="100" max="600" step="10" value="220">
+          <div class="settings-meta">
+            Shorter than <strong id="thresholdInline">220ms</strong> becomes a dot.
+            Presses at or above that become a dash.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="viz-wrap">
+      <svg id="morseSvg" viewBox="0 0 900 980" aria-label="Morse code decoding tree"></svg>
+    </section>
+
+    <section class="touch-pad" id="touchPad" aria-label="Touch input pad">
+      <strong>Press Here</strong>
+      <span>Touch and hold for Morse input on phones and tablets.</span>
+    </section>
+
+    <p class="footer">Recognizes A-Z using standard International Morse code.</p>
+  </main>
+
+  <script>
+    const MORSE_MAP = {
+      A: ".-",
+      B: "-...",
+      C: "-.-.",
+      D: "-..",
+      E: ".",
+      F: "..-.",
+      G: "--.",
+      H: "....",
+      I: "..",
+      J: ".---",
+      K: "-.-",
+      L: ".-..",
+      M: "--",
+      N: "-.",
+      O: "---",
+      P: ".--.",
+      Q: "--.-",
+      R: ".-.",
+      S: "...",
+      T: "-",
+      U: "..-",
+      V: "...-",
+      W: ".--",
+      X: "-..-",
+      Y: "-.--",
+      Z: "--.."
+    };
+
+    const DEFAULT_DOT_THRESHOLD = 220;
+    const DECODE_DELAY = 900;
+    const CLEAR_DELAY = 1700;
+
+    const sequenceEl = document.getElementById("sequence");
+    const decodedEl = document.getElementById("decoded");
+    const thresholdValueEl = document.getElementById("thresholdValue");
+    const thresholdInlineEl = document.getElementById("thresholdInline");
+    const thresholdSliderEl = document.getElementById("thresholdSlider");
+    const settingsToggleEl = document.getElementById("settingsToggle");
+    const settingsPanelEl = document.getElementById("settingsPanel");
+    const touchPadEl = document.getElementById("touchPad");
+    const svg = document.getElementById("morseSvg");
+    const boardEl = document.querySelector(".board");
+    const ns = "http://www.w3.org/2000/svg";
+    const thresholdStorageKey = "morse-dot-threshold-ms";
+
+    let pressStart = 0;
+    let keyDown = false;
+    let activePointerId = null;
+    let currentSequence = "";
+    let decodeTimer = null;
+    let clearTimer = null;
+    let dotThreshold = loadStoredThreshold();
+
+    const nodeByPath = new Map();
+    const edgeByPath = new Map();
+    const MORSE_POSITIONS = {
+      "-": { letter: "T", x: 330, y: 170, labelDx: 0, labelDy: -28 },
+      ".": { letter: "E", x: 565, y: 170, labelDx: 0, labelDy: -28 },
+      "--": { letter: "M", x: 220, y: 170, labelDx: 0, labelDy: -28 },
+      "-.": { letter: "N", x: 450, y: 320, labelDx: 0, labelDy: -28 },
+      "..": { letter: "I", x: 690, y: 170, labelDx: 0, labelDy: -28 },
+      ".-": { letter: "A", x: 565, y: 430, labelDx: -28, labelDy: 12 },
+      "---": { letter: "O", x: 95, y: 170, labelDx: 0, labelDy: -28 },
+      "--.": { letter: "G", x: 220, y: 270, labelDx: 30, labelDy: 8 },
+      "--..": { letter: "Z", x: 220, y: 380, labelDx: 28, labelDy: 8 },
+      "--.-": { letter: "Q", x: 95, y: 270, labelDx: -26, labelDy: 8 },
+      "-.-": { letter: "K", x: 330, y: 320, labelDx: 0, labelDy: -28 },
+      "-.--": { letter: "Y", x: 95, y: 320, labelDx: -10, labelDy: -28 },
+      "-.-.": { letter: "C", x: 330, y: 430, labelDx: 28, labelDy: 10 },
+      "-..": { letter: "D", x: 450, y: 540, labelDx: 0, labelDy: -28 },
+      "-..-": { letter: "X", x: 330, y: 540, labelDx: -10, labelDy: -28 },
+      "-...": { letter: "B", x: 450, y: 760, labelDx: -34, labelDy: 8 },
+      "...": { letter: "S", x: 810, y: 170, labelDx: 0, labelDy: -28 },
+      "....": { letter: "H", x: 920, y: 170, labelDx: 0, labelDy: -28 },
+      "...-": { letter: "V", x: 810, y: 270, labelDx: 30, labelDy: 8 },
+      "..-": { letter: "U", x: 690, y: 270, labelDx: -28, labelDy: 8 },
+      "..-.": { letter: "F", x: 690, y: 380, labelDx: 28, labelDy: 8 },
+      ".-.": { letter: "R", x: 690, y: 430, labelDx: 0, labelDy: 34 },
+      ".-..": { letter: "L", x: 810, y: 430, labelDx: 30, labelDy: 8 },
+      ".--": { letter: "W", x: 565, y: 650, labelDx: -34, labelDy: 8 },
+      ".---": { letter: "J", x: 565, y: 760, labelDx: 28, labelDy: 8 },
+      ".--.": { letter: "P", x: 690, y: 650, labelDx: 30, labelDy: 8 }
+    };
+    const ROOT_NODE = { x: 450, y: 85 };
+
+    function loadStoredThreshold() {
+      const stored = Number(window.localStorage.getItem(thresholdStorageKey));
+      if (Number.isFinite(stored) && stored >= 100 && stored <= 600) {
+        return stored;
+      }
+      return DEFAULT_DOT_THRESHOLD;
+    }
+
+    function syncThresholdUi() {
+      const text = `${dotThreshold}ms`;
+      thresholdValueEl.textContent = text;
+      thresholdInlineEl.textContent = text;
+      thresholdSliderEl.value = String(dotThreshold);
+    }
+
+    function setThreshold(nextValue) {
+      dotThreshold = nextValue;
+      window.localStorage.setItem(thresholdStorageKey, String(nextValue));
+      syncThresholdUi();
+    }
+
+    function makeSvg(tag, attrs = {}) {
+      const el = document.createElementNS(ns, tag);
+      for (const [key, value] of Object.entries(attrs)) {
+        el.setAttribute(key, value);
+      }
+      return el;
+    }
+
+    function drawRootSplitter() {
+      const mast = makeSvg("path", {
+        d: "M450 58 L450 118 M450 58 L422 28 M450 58 L478 28",
+        class: "splitter"
+      });
+      const mastCore = makeSvg("path", {
+        d: "M450 58 L450 118 M450 58 L422 28 M450 58 L478 28",
+        class: "splitter-core"
+      });
+      svg.appendChild(mast);
+      svg.appendChild(mastCore);
+    }
+
+    function drawTree() {
+      nodeByPath.set("", ROOT_NODE);
+      drawRootSplitter();
+
+      const allPaths = Object.keys(MORSE_POSITIONS).sort((a, b) => a.length - b.length || a.localeCompare(b));
+
+      for (const path of allPaths) {
+        const node = MORSE_POSITIONS[path];
+        node.path = path;
+        nodeByPath.set(path, node);
+
+        const parentPath = path.slice(0, -1);
+        const parentNode = nodeByPath.get(parentPath) || ROOT_NODE;
+        const edge = makeSvg("line", {
+          x1: parentNode.x,
+          y1: parentNode.y,
+          x2: node.x,
+          y2: node.y,
+          class: "edge",
+          "data-path": path
+        });
+        svg.appendChild(edge);
+        edgeByPath.set(path, edge);
+
+        const group = makeSvg("g", { "data-node": path });
+        const symbol = path[path.length - 1];
+        const lamp = symbol === "."
+          ? makeSvg("circle", { cx: node.x, cy: node.y, r: 15, class: "lamp-circle" })
+          : makeSvg("rect", { x: node.x - 25, y: node.y - 13, width: 50, height: 26, rx: 8, class: "lamp-dash" });
+        group.appendChild(lamp);
+
+        const label = makeSvg("text", {
+          x: node.x + (node.labelDx || 0),
+          y: node.y + (node.labelDy || -24),
+          class: "label"
+        });
+        label.textContent = node.letter;
+        group.appendChild(label);
+
+        node.lamp = lamp;
+        node.label = label;
+        svg.appendChild(group);
+      }
+    }
+
+    drawTree();
+
+    const invalidPanel = makeSvg("g", { transform: "translate(732 110)" });
+    invalidPanel.innerHTML = `
+      <rect x="0" y="0" width="128" height="120" class="invalid-box"></rect>
+      <circle cx="64" cy="42" r="18" class="invalid-lamp" id="invalidLamp"></circle>
+      <text x="64" y="86" class="invalid-label">INVALID</text>
+    `;
+    svg.appendChild(invalidPanel);
+    const invalidLamp = document.getElementById("invalidLamp");
+
+    function adjustLayoutForViewport() {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const isWideDesktop = viewportWidth >= 1280 && viewportWidth / viewportHeight >= 1.45;
+
+      boardEl.classList.toggle("is-wide", isWideDesktop);
+
+      if (isWideDesktop) {
+        svg.setAttribute("viewBox", "0 0 1020 920");
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      } else {
+        svg.setAttribute("viewBox", "0 0 1020 920");
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      }
+    }
+
+    function setReadout(sequenceText, decodedText) {
+      sequenceEl.textContent = sequenceText || "Waiting";
+      decodedEl.textContent = decodedText || "...";
+    }
+
+    function clearHighlights() {
+      for (const edge of edgeByPath.values()) {
+        edge.classList.remove("active");
+      }
+      for (const node of nodeByPath.values()) {
+        if (node.lamp) node.lamp.classList.remove("active");
+        if (node.label) node.label.classList.remove("active");
+      }
+      invalidLamp.classList.remove("active");
+    }
+
+    function flashPath(path, invalid = false) {
+      clearHighlights();
+
+      if (invalid) {
+        invalidLamp.classList.add("active");
+        return;
+      }
+
+      let build = "";
+      for (const symbol of path) {
+        build += symbol;
+        const edge = edgeByPath.get(build);
+        const node = nodeByPath.get(build);
+        if (edge) edge.classList.add("active");
+        if (node?.lamp) node.lamp.classList.add("active");
+      }
+
+      const finalNode = nodeByPath.get(path);
+      if (finalNode?.label) {
+        finalNode.label.classList.add("active");
+      }
+    }
+
+    function decodeSequence() {
+      if (!currentSequence) return;
+
+      let decodedLetter = "";
+      for (const [letter, code] of Object.entries(MORSE_MAP)) {
+        if (code === currentSequence) {
+          decodedLetter = letter;
+          break;
+        }
+      }
+
+      if (decodedLetter) {
+        setReadout(currentSequence, decodedLetter);
+        flashPath(currentSequence, false);
+      } else {
+        setReadout(currentSequence, "INVALID");
+        flashPath(currentSequence, true);
+      }
+
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(() => {
+        currentSequence = "";
+        clearHighlights();
+        setReadout("", "");
+      }, CLEAR_DELAY);
+    }
+
+    function scheduleDecode() {
+      clearTimeout(decodeTimer);
+      decodeTimer = setTimeout(decodeSequence, DECODE_DELAY);
+    }
+
+    function registerSymbol(symbol) {
+      clearTimeout(clearTimer);
+      clearHighlights();
+      currentSequence += symbol;
+      setReadout(currentSequence, "");
+      scheduleDecode();
+    }
+
+    function startPress() {
+      if (keyDown) return;
+      keyDown = true;
+      pressStart = performance.now();
+      touchPadEl.classList.add("active");
+    }
+
+    function finishPress() {
+      if (!keyDown) return;
+      keyDown = false;
+      touchPadEl.classList.remove("active");
+      const duration = performance.now() - pressStart;
+      const symbol = duration >= dotThreshold ? "-" : ".";
+      registerSymbol(symbol);
+    }
+
+    window.addEventListener("keydown", (event) => {
+      if (event.code !== "Space") return;
+      event.preventDefault();
+      startPress();
+    });
+
+    window.addEventListener("keyup", (event) => {
+      if (event.code !== "Space") return;
+      event.preventDefault();
+      finishPress();
+    });
+
+    touchPadEl.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      if (activePointerId !== null) return;
+      activePointerId = event.pointerId;
+      touchPadEl.setPointerCapture(event.pointerId);
+      startPress();
+    });
+
+    touchPadEl.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== activePointerId) return;
+      event.preventDefault();
+      activePointerId = null;
+      finishPress();
+    });
+
+    touchPadEl.addEventListener("pointercancel", (event) => {
+      if (event.pointerId !== activePointerId) return;
+      activePointerId = null;
+      keyDown = false;
+      touchPadEl.classList.remove("active");
+    });
+
+    settingsToggleEl.addEventListener("click", () => {
+      const isOpen = settingsPanelEl.classList.toggle("open");
+      settingsToggleEl.setAttribute("aria-expanded", String(isOpen));
+    });
+
+    thresholdSliderEl.addEventListener("input", () => {
+      setThreshold(Number(thresholdSliderEl.value));
+    });
+
+    window.addEventListener("pointerdown", (event) => {
+      if (!settingsPanelEl.classList.contains("open")) return;
+      if (settingsPanelEl.contains(event.target) || settingsToggleEl.contains(event.target)) return;
+      settingsPanelEl.classList.remove("open");
+      settingsToggleEl.setAttribute("aria-expanded", "false");
+    });
+
+    window.addEventListener("resize", adjustLayoutForViewport);
+    adjustLayoutForViewport();
+    syncThresholdUi();
+    setReadout("", "");
+  </script>
+</body>
+</html>
