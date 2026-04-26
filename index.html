@@ -133,48 +133,36 @@
       z-index: 1;
     }
 
-    .settings {
+    .settings-section {
       position: relative;
+      z-index: 1;
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .settings-toggle {
-      appearance: none;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-      border-radius: 999px;
-      padding: 10px 14px;
-      font: inherit;
-      cursor: pointer;
+    .settings-title {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #fff1ca;
     }
 
-    .settings-panel {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 10px);
-      width: min(320px, calc(100vw - 48px));
-      padding: 14px;
-      border-radius: 18px;
-      background: rgba(14, 18, 24, 0.96);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-      display: none;
-    }
-
-    .settings-panel.open {
-      display: block;
-    }
-
-    .settings-panel label {
+    .settings-section label {
       display: block;
       font-size: 0.92rem;
       color: var(--text);
       margin-bottom: 10px;
     }
 
-    .settings-panel input[type="range"] {
+    .settings-section input[type="range"] {
       width: 100%;
       margin: 10px 0;
+      touch-action: pan-x;
     }
 
     .settings-meta {
@@ -183,13 +171,54 @@
       line-height: 1.4;
     }
 
-    .threshold-pill {
-      padding: 9px 14px;
-      border-radius: 999px;
-      background: rgba(255, 216, 106, 0.08);
-      border: 1px solid rgba(255, 216, 106, 0.16);
+    .settings-group + .settings-group {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .message-box {
+      flex: 1 1 380px;
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+      min-width: min(100%, 380px);
+    }
+
+    .message-display {
+      flex: 1;
+      min-height: 48px;
+      padding: 12px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: #fff1ca;
-      font-size: 0.92rem;
+      font-size: 1rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: thin;
+    }
+
+    .message-display.empty {
+      color: rgba(241, 231, 206, 0.45);
+      letter-spacing: 0.05em;
+      text-transform: none;
+    }
+
+    .clear-button {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 0 16px;
+      font: inherit;
+      cursor: pointer;
+      min-height: 48px;
     }
 
     .viz-wrap {
@@ -254,12 +283,27 @@
       fill: #0f1217;
     }
 
+    .label-box {
+      fill: rgba(10, 12, 16, 0.96);
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 1.2;
+      rx: 8;
+      transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease;
+    }
+
+    .label-box.active {
+      fill: rgba(56, 44, 18, 0.96);
+      stroke: rgba(255, 231, 168, 0.7);
+      filter: drop-shadow(0 0 10px rgba(255, 215, 90, 0.4));
+    }
+
     .label {
-      fill: rgba(241, 231, 206, 0.38);
+      fill: rgba(241, 231, 206, 0.78);
       font-weight: 700;
-      font-size: 18px;
+      font-size: 16px;
       letter-spacing: 0.08em;
       text-anchor: middle;
+      dominant-baseline: middle;
       transition: fill 180ms ease, filter 180ms ease;
       user-select: none;
     }
@@ -399,20 +443,20 @@
         align-items: stretch;
       }
 
-      .settings {
+      .message-box {
         width: 100%;
       }
 
-      .settings-toggle,
-      .threshold-pill {
-        width: 100%;
-        text-align: center;
+      .message-box {
+        flex-direction: column;
       }
 
-      .settings-panel {
-        left: 0;
-        right: auto;
+      .clear-button {
         width: 100%;
+      }
+
+      .settings-section {
+        padding: 14px;
       }
     }
   </style>
@@ -430,22 +474,34 @@
     </section>
 
     <section class="toolbar">
-      <div class="threshold-pill">Dash threshold: <strong id="thresholdValue">220ms</strong></div>
-      <div class="settings">
-        <button class="settings-toggle" id="settingsToggle" type="button" aria-expanded="false" aria-controls="settingsPanel">Settings</button>
-        <div class="settings-panel" id="settingsPanel">
-          <label for="thresholdSlider">Dot / dash threshold</label>
-          <input id="thresholdSlider" type="range" min="100" max="600" step="10" value="220">
-          <div class="settings-meta">
-            Shorter than <strong id="thresholdInline">220ms</strong> becomes a dot.
-            Presses at or above that become a dash.
-          </div>
-        </div>
+      <div class="message-box">
+        <div class="message-display empty" id="messageDisplay">Decoded letters will appear here</div>
+        <button class="clear-button" id="clearButton" type="button">Clear</button>
       </div>
     </section>
 
     <section class="viz-wrap">
       <svg id="morseSvg" viewBox="0 0 900 980" aria-label="Morse code decoding tree"></svg>
+    </section>
+
+    <section class="settings-section">
+      <p class="settings-title">Settings</p>
+      <div class="settings-group">
+        <label for="thresholdSlider">Dot / dash threshold</label>
+        <input id="thresholdSlider" type="range" min="100" max="600" step="10" value="220">
+        <div class="settings-meta">
+          Shorter than <strong id="thresholdInline">220ms</strong> becomes a dot.
+          Presses at or above that become a dash.
+        </div>
+      </div>
+      <div class="settings-group">
+        <label for="decodeDelaySlider">Wait time to decode next letter</label>
+        <input id="decodeDelaySlider" type="range" min="300" max="2000" step="50" value="900">
+        <div class="settings-meta">
+          After you release the last press, the board waits <strong id="decodeDelayInline">900ms</strong>
+          before decoding the current Morse sequence.
+        </div>
+      </div>
     </section>
 
     <section class="touch-pad" id="touchPad" aria-label="Touch input pad">
@@ -487,59 +543,66 @@
     };
 
     const DEFAULT_DOT_THRESHOLD = 220;
-    const DECODE_DELAY = 900;
+    const DEFAULT_DECODE_DELAY = 900;
     const CLEAR_DELAY = 1700;
 
     const sequenceEl = document.getElementById("sequence");
     const decodedEl = document.getElementById("decoded");
-    const thresholdValueEl = document.getElementById("thresholdValue");
     const thresholdInlineEl = document.getElementById("thresholdInline");
     const thresholdSliderEl = document.getElementById("thresholdSlider");
-    const settingsToggleEl = document.getElementById("settingsToggle");
-    const settingsPanelEl = document.getElementById("settingsPanel");
+    const decodeDelayInlineEl = document.getElementById("decodeDelayInline");
+    const decodeDelaySliderEl = document.getElementById("decodeDelaySlider");
+    const messageDisplayEl = document.getElementById("messageDisplay");
+    const clearButtonEl = document.getElementById("clearButton");
     const touchPadEl = document.getElementById("touchPad");
     const svg = document.getElementById("morseSvg");
     const boardEl = document.querySelector(".board");
     const ns = "http://www.w3.org/2000/svg";
     const thresholdStorageKey = "morse-dot-threshold-ms";
+    const decodeDelayStorageKey = "morse-decode-delay-ms";
+    const edgeLayer = makeSvg("g", { "data-layer": "edges" });
+    const nodeLayer = makeSvg("g", { "data-layer": "nodes" });
+    const overlayLayer = makeSvg("g", { "data-layer": "overlay" });
 
     let pressStart = 0;
     let keyDown = false;
     let activePointerId = null;
     let currentSequence = "";
+    let decodedMessage = "";
     let decodeTimer = null;
     let clearTimer = null;
     let dotThreshold = loadStoredThreshold();
+    let decodeDelay = loadStoredDecodeDelay();
 
     const nodeByPath = new Map();
     const edgeByPath = new Map();
     const MORSE_POSITIONS = {
-      "-": { letter: "T", x: 330, y: 170, labelDx: 0, labelDy: -28 },
-      ".": { letter: "E", x: 565, y: 170, labelDx: 0, labelDy: -28 },
-      "--": { letter: "M", x: 220, y: 170, labelDx: 0, labelDy: -28 },
-      "-.": { letter: "N", x: 450, y: 320, labelDx: 0, labelDy: -28 },
-      "..": { letter: "I", x: 690, y: 170, labelDx: 0, labelDy: -28 },
-      ".-": { letter: "A", x: 565, y: 430, labelDx: -28, labelDy: 12 },
-      "---": { letter: "O", x: 95, y: 170, labelDx: 0, labelDy: -28 },
-      "--.": { letter: "G", x: 220, y: 270, labelDx: 30, labelDy: 8 },
-      "--..": { letter: "Z", x: 220, y: 380, labelDx: 28, labelDy: 8 },
-      "--.-": { letter: "Q", x: 95, y: 270, labelDx: -26, labelDy: 8 },
-      "-.-": { letter: "K", x: 330, y: 320, labelDx: 0, labelDy: -28 },
-      "-.--": { letter: "Y", x: 95, y: 320, labelDx: -10, labelDy: -28 },
-      "-.-.": { letter: "C", x: 330, y: 430, labelDx: 28, labelDy: 10 },
-      "-..": { letter: "D", x: 450, y: 540, labelDx: 0, labelDy: -28 },
-      "-..-": { letter: "X", x: 330, y: 540, labelDx: -10, labelDy: -28 },
-      "-...": { letter: "B", x: 450, y: 760, labelDx: -34, labelDy: 8 },
-      "...": { letter: "S", x: 810, y: 170, labelDx: 0, labelDy: -28 },
-      "....": { letter: "H", x: 920, y: 170, labelDx: 0, labelDy: -28 },
-      "...-": { letter: "V", x: 810, y: 270, labelDx: 30, labelDy: 8 },
-      "..-": { letter: "U", x: 690, y: 270, labelDx: -28, labelDy: 8 },
-      "..-.": { letter: "F", x: 690, y: 380, labelDx: 28, labelDy: 8 },
-      ".-.": { letter: "R", x: 690, y: 430, labelDx: 0, labelDy: 34 },
-      ".-..": { letter: "L", x: 810, y: 430, labelDx: 30, labelDy: 8 },
-      ".--": { letter: "W", x: 565, y: 650, labelDx: -34, labelDy: 8 },
-      ".---": { letter: "J", x: 565, y: 760, labelDx: 28, labelDy: 8 },
-      ".--.": { letter: "P", x: 690, y: 650, labelDx: 30, labelDy: 8 }
+      "-": { letter: "T", x: 330, y: 170 },
+      ".": { letter: "E", x: 565, y: 170 },
+      "--": { letter: "M", x: 220, y: 170 },
+      "-.": { letter: "N", x: 450, y: 385 },
+      "..": { letter: "I", x: 690, y: 170 },
+      ".-": { letter: "A", x: 565, y: 575 },
+      "---": { letter: "O", x: 95, y: 170 },
+      "--.": { letter: "G", x: 220, y: 315 },
+      "--..": { letter: "Z", x: 220, y: 500 },
+      "--.-": { letter: "Q", x: 95, y: 315 },
+      "-.-": { letter: "K", x: 330, y: 385 },
+      "-.--": { letter: "Y", x: 95, y: 385 },
+      "-.-.": { letter: "C", x: 330, y: 575 },
+      "-..": { letter: "D", x: 450, y: 720 },
+      "-..-": { letter: "X", x: 330, y: 720 },
+      "-...": { letter: "B", x: 450, y: 1000 },
+      "...": { letter: "S", x: 810, y: 170 },
+      "....": { letter: "H", x: 920, y: 170 },
+      "...-": { letter: "V", x: 810, y: 315 },
+      "..-": { letter: "U", x: 690, y: 315 },
+      "..-.": { letter: "F", x: 690, y: 500 },
+      ".-.": { letter: "R", x: 690, y: 575 },
+      ".-..": { letter: "L", x: 810, y: 575 },
+      ".--": { letter: "W", x: 565, y: 860 },
+      ".---": { letter: "J", x: 565, y: 1000 },
+      ".--.": { letter: "P", x: 690, y: 860 }
     };
     const ROOT_NODE = { x: 450, y: 85 };
 
@@ -551,9 +614,16 @@
       return DEFAULT_DOT_THRESHOLD;
     }
 
+    function loadStoredDecodeDelay() {
+      const stored = Number(window.localStorage.getItem(decodeDelayStorageKey));
+      if (Number.isFinite(stored) && stored >= 300 && stored <= 2000) {
+        return stored;
+      }
+      return DEFAULT_DECODE_DELAY;
+    }
+
     function syncThresholdUi() {
       const text = `${dotThreshold}ms`;
-      thresholdValueEl.textContent = text;
       thresholdInlineEl.textContent = text;
       thresholdSliderEl.value = String(dotThreshold);
     }
@@ -564,6 +634,29 @@
       syncThresholdUi();
     }
 
+    function syncDecodeDelayUi() {
+      const text = `${decodeDelay}ms`;
+      decodeDelayInlineEl.textContent = text;
+      decodeDelaySliderEl.value = String(decodeDelay);
+    }
+
+    function setDecodeDelay(nextValue) {
+      decodeDelay = nextValue;
+      window.localStorage.setItem(decodeDelayStorageKey, String(nextValue));
+      syncDecodeDelayUi();
+    }
+
+    function syncMessageDisplay() {
+      if (decodedMessage) {
+        messageDisplayEl.textContent = decodedMessage;
+        messageDisplayEl.classList.remove("empty");
+      } else {
+        messageDisplayEl.textContent = "Decoded letters will appear here";
+        messageDisplayEl.classList.add("empty");
+      }
+      messageDisplayEl.scrollLeft = messageDisplayEl.scrollWidth;
+    }
+
     function makeSvg(tag, attrs = {}) {
       const el = document.createElementNS(ns, tag);
       for (const [key, value] of Object.entries(attrs)) {
@@ -571,6 +664,10 @@
       }
       return el;
     }
+
+    svg.appendChild(edgeLayer);
+    svg.appendChild(nodeLayer);
+    svg.appendChild(overlayLayer);
 
     function drawRootSplitter() {
       const mast = makeSvg("path", {
@@ -581,8 +678,8 @@
         d: "M450 58 L450 118 M450 58 L422 28 M450 58 L478 28",
         class: "splitter-core"
       });
-      svg.appendChild(mast);
-      svg.appendChild(mastCore);
+      edgeLayer.appendChild(mast);
+      edgeLayer.appendChild(mastCore);
     }
 
     function drawTree() {
@@ -606,7 +703,7 @@
           class: "edge",
           "data-path": path
         });
-        svg.appendChild(edge);
+        edgeLayer.appendChild(edge);
         edgeByPath.set(path, edge);
 
         const group = makeSvg("g", { "data-node": path });
@@ -616,29 +713,41 @@
           : makeSvg("rect", { x: node.x - 25, y: node.y - 13, width: 50, height: 26, rx: 8, class: "lamp-dash" });
         group.appendChild(lamp);
 
+        const labelY = node.y + 38;
+        const labelBox = makeSvg("rect", {
+          x: node.x - 17,
+          y: labelY - 11,
+          width: 34,
+          height: 22,
+          rx: 8,
+          class: "label-box"
+        });
+        group.appendChild(labelBox);
+
         const label = makeSvg("text", {
-          x: node.x + (node.labelDx || 0),
-          y: node.y + (node.labelDy || -24),
+          x: node.x,
+          y: labelY + 1,
           class: "label"
         });
         label.textContent = node.letter;
         group.appendChild(label);
 
         node.lamp = lamp;
+        node.labelBox = labelBox;
         node.label = label;
-        svg.appendChild(group);
+        nodeLayer.appendChild(group);
       }
     }
 
     drawTree();
 
-    const invalidPanel = makeSvg("g", { transform: "translate(732 110)" });
+    const invalidPanel = makeSvg("g", { transform: "translate(880 110)" });
     invalidPanel.innerHTML = `
       <rect x="0" y="0" width="128" height="120" class="invalid-box"></rect>
       <circle cx="64" cy="42" r="18" class="invalid-lamp" id="invalidLamp"></circle>
       <text x="64" y="86" class="invalid-label">INVALID</text>
     `;
-    svg.appendChild(invalidPanel);
+    overlayLayer.appendChild(invalidPanel);
     const invalidLamp = document.getElementById("invalidLamp");
 
     function adjustLayoutForViewport() {
@@ -649,10 +758,10 @@
       boardEl.classList.toggle("is-wide", isWideDesktop);
 
       if (isWideDesktop) {
-        svg.setAttribute("viewBox", "0 0 1020 920");
+        svg.setAttribute("viewBox", "0 0 1180 1160");
         svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
       } else {
-        svg.setAttribute("viewBox", "0 0 1020 920");
+        svg.setAttribute("viewBox", "0 0 1180 1160");
         svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
       }
     }
@@ -668,6 +777,7 @@
       }
       for (const node of nodeByPath.values()) {
         if (node.lamp) node.lamp.classList.remove("active");
+        if (node.labelBox) node.labelBox.classList.remove("active");
         if (node.label) node.label.classList.remove("active");
       }
       invalidLamp.classList.remove("active");
@@ -692,6 +802,7 @@
 
       const finalNode = nodeByPath.get(path);
       if (finalNode?.label) {
+        if (finalNode.labelBox) finalNode.labelBox.classList.add("active");
         finalNode.label.classList.add("active");
       }
     }
@@ -708,6 +819,8 @@
       }
 
       if (decodedLetter) {
+        decodedMessage += decodedLetter;
+        syncMessageDisplay();
         setReadout(currentSequence, decodedLetter);
         flashPath(currentSequence, false);
       } else {
@@ -725,7 +838,7 @@
 
     function scheduleDecode() {
       clearTimeout(decodeTimer);
-      decodeTimer = setTimeout(decodeSequence, DECODE_DELAY);
+      decodeTimer = setTimeout(decodeSequence, decodeDelay);
     }
 
     function registerSymbol(symbol) {
@@ -786,25 +899,32 @@
       touchPadEl.classList.remove("active");
     });
 
-    settingsToggleEl.addEventListener("click", () => {
-      const isOpen = settingsPanelEl.classList.toggle("open");
-      settingsToggleEl.setAttribute("aria-expanded", String(isOpen));
-    });
-
     thresholdSliderEl.addEventListener("input", () => {
       setThreshold(Number(thresholdSliderEl.value));
     });
 
-    window.addEventListener("pointerdown", (event) => {
-      if (!settingsPanelEl.classList.contains("open")) return;
-      if (settingsPanelEl.contains(event.target) || settingsToggleEl.contains(event.target)) return;
-      settingsPanelEl.classList.remove("open");
-      settingsToggleEl.setAttribute("aria-expanded", "false");
+    decodeDelaySliderEl.addEventListener("input", () => {
+      setDecodeDelay(Number(decodeDelaySliderEl.value));
+      if (currentSequence) {
+        scheduleDecode();
+      }
+    });
+
+    clearButtonEl.addEventListener("click", () => {
+      decodedMessage = "";
+      currentSequence = "";
+      clearTimeout(decodeTimer);
+      clearTimeout(clearTimer);
+      clearHighlights();
+      setReadout("", "");
+      syncMessageDisplay();
     });
 
     window.addEventListener("resize", adjustLayoutForViewport);
     adjustLayoutForViewport();
     syncThresholdUi();
+    syncDecodeDelayUi();
+    syncMessageDisplay();
     setReadout("", "");
   </script>
 </body>
