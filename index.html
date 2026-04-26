@@ -374,6 +374,62 @@
       font-size: 0.92rem;
     }
 
+    .sos-boat {
+      position: absolute;
+      right: -120px;
+      top: 34%;
+      z-index: 2;
+      font-size: clamp(2.25rem, 4vw, 3.4rem);
+      line-height: 1;
+      opacity: 0;
+      pointer-events: none;
+      text-shadow:
+        0 0 10px rgba(255, 241, 202, 0.35),
+        0 8px 18px rgba(0, 0, 0, 0.4);
+      transform: translateX(0) translateY(0) rotate(-4deg);
+    }
+
+    .sos-boat.sailing {
+      animation: sail-across 6.8s linear forwards;
+    }
+
+    @keyframes sail-across {
+      0% {
+        opacity: 0;
+        transform: translateX(0) translateY(0) rotate(-4deg);
+      }
+
+      8% {
+        opacity: 1;
+        transform: translateX(-40px) translateY(-6px) rotate(-2deg);
+      }
+
+      24% {
+        opacity: 1;
+        transform: translateX(-320px) translateY(6px) rotate(1deg);
+      }
+
+      42% {
+        opacity: 1;
+        transform: translateX(-610px) translateY(-4px) rotate(-2deg);
+      }
+
+      64% {
+        opacity: 1;
+        transform: translateX(-930px) translateY(8px) rotate(2deg);
+      }
+
+      88% {
+        opacity: 1;
+        transform: translateX(-1260px) translateY(-5px) rotate(-1deg);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateX(-1380px) translateY(0) rotate(-4deg);
+      }
+    }
+
     .touch-pad {
       position: relative;
       z-index: 1;
@@ -463,6 +519,8 @@
 </head>
 <body>
   <main class="board">
+    <div class="sos-boat" id="sosBoat" aria-hidden="true">&#x26F5;</div>
+
     <section class="header">
       <h1>International<br>Morse Decoding</h1>
       <p class="sub">Use the spacebar on desktop, or press and hold the touch pad on phone. Short press = dot, long press = dash.</p>
@@ -484,6 +542,11 @@
       <svg id="morseSvg" viewBox="0 0 900 980" aria-label="Morse code decoding tree"></svg>
     </section>
 
+    <section class="touch-pad" id="touchPad" aria-label="Touch input pad">
+      <strong>Press Here</strong>
+      <span>Touch and hold for Morse input on phones and tablets.</span>
+    </section>
+
     <section class="settings-section">
       <p class="settings-title">Settings</p>
       <div class="settings-group">
@@ -502,11 +565,6 @@
           before decoding the current Morse sequence.
         </div>
       </div>
-    </section>
-
-    <section class="touch-pad" id="touchPad" aria-label="Touch input pad">
-      <strong>Press Here</strong>
-      <span>Touch and hold for Morse input on phones and tablets.</span>
     </section>
 
     <p class="footer">Recognizes A-Z using standard International Morse code.</p>
@@ -555,6 +613,7 @@
     const messageDisplayEl = document.getElementById("messageDisplay");
     const clearButtonEl = document.getElementById("clearButton");
     const touchPadEl = document.getElementById("touchPad");
+    const sosBoatEl = document.getElementById("sosBoat");
     const svg = document.getElementById("morseSvg");
     const boardEl = document.querySelector(".board");
     const ns = "http://www.w3.org/2000/svg";
@@ -655,6 +714,12 @@
         messageDisplayEl.classList.add("empty");
       }
       messageDisplayEl.scrollLeft = messageDisplayEl.scrollWidth;
+    }
+
+    function triggerSosBoat() {
+      sosBoatEl.classList.remove("sailing");
+      void sosBoatEl.offsetWidth;
+      sosBoatEl.classList.add("sailing");
     }
 
     function makeSvg(tag, attrs = {}) {
@@ -810,9 +875,10 @@
     function decodeSequence() {
       if (!currentSequence) return;
 
+      const sequenceToDecode = currentSequence;
       let decodedLetter = "";
       for (const [letter, code] of Object.entries(MORSE_MAP)) {
-        if (code === currentSequence) {
+        if (code === sequenceToDecode) {
           decodedLetter = letter;
           break;
         }
@@ -821,19 +887,27 @@
       if (decodedLetter) {
         decodedMessage += decodedLetter;
         syncMessageDisplay();
-        setReadout(currentSequence, decodedLetter);
-        flashPath(currentSequence, false);
-      } else {
-        setReadout(currentSequence, "INVALID");
-        flashPath(currentSequence, true);
-      }
-
-      clearTimeout(clearTimer);
-      clearTimer = setTimeout(() => {
+        if (decodedMessage.endsWith("SOS")) {
+          triggerSosBoat();
+        }
+        setReadout(sequenceToDecode, decodedLetter);
+        flashPath(sequenceToDecode, false);
         currentSequence = "";
-        clearHighlights();
-        setReadout("", "");
-      }, CLEAR_DELAY);
+        clearTimeout(clearTimer);
+        clearTimer = setTimeout(() => {
+          clearHighlights();
+          setReadout("", "");
+        }, CLEAR_DELAY);
+      } else {
+        setReadout(sequenceToDecode, "INVALID");
+        flashPath(sequenceToDecode, true);
+        clearTimeout(clearTimer);
+        clearTimer = setTimeout(() => {
+          currentSequence = "";
+          clearHighlights();
+          setReadout("", "");
+        }, CLEAR_DELAY);
+      }
     }
 
     function scheduleDecode() {
